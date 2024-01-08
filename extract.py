@@ -1,3 +1,6 @@
+import time
+from random import uniform
+from fake_useragent import UserAgent
 import httpx
 from selectolax.parser import HTMLParser
 
@@ -6,10 +9,11 @@ from selectolax.parser import HTMLParser
 def get_html():
     """
     Parser la page html voulue
+    On utilise un UserAgent différent à chaque appel de la fonction pour ne pas être bloqué par le site
     """
     url = 'https://www.welcometothejungle.com/fr/companies/sicara/jobs/lead-data-engineer-cdi-sicara-paris_paris'
-    headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) "
-                             "Chrome/120.0.0.0 Safari/537.36"}
+    user_agent = UserAgent().random  # Générer un User-Agent aléatoire à chaque appel
+    headers = {'User-Agent': user_agent}
 
     resp = httpx.get(url, headers=headers)
     html = HTMLParser(resp.text)
@@ -51,6 +55,7 @@ def get_info_no_parent(html, selector, str1="", str2="", str3="", str4=""):
         return None
 
 def get_contract_elements(html):
+
     # Ciblage de ma balise contenant toutes les données de base de l'offre
     contract_elements = html.css_first('.sc-bXCLTC.jlqIpd.sc-fbKhjd.kfysmu.sc-1wwpb2t-5.hexbEF')
 
@@ -65,6 +70,9 @@ def get_contract_elements(html):
     education_level = get_info(contract_elements, '[name="education_level"]', str1="Éducation : ")
     # pour publication_date l'information figure directement dans la balise j'utilise .attributes
     publication_date = contract_elements.css_first('time').attributes['datetime'][0:10]
+
+    # Faire une pause aléatoire de 1 à 3 secondes pour éviter d'être bloqué par le site
+    time.sleep(uniform(1, 3))
 
     # Stockage du tout dans un dictionnaire
     return {
@@ -87,6 +95,9 @@ def get_company_elements(html):
     turnover_in_millions = get_info(company_elements, '[alt="EuroCurrency"]', str1="Chiffre d'affaires : ", str3="M€")
     proportion_female = get_info(company_elements, '[alt="Female"]', str1="%")
     proportion_male = get_info(company_elements, '[alt="Male"]', str1="%")
+
+    # Faire une pause aléatoire de 1 à 3 secondes pour éviter d'être bloqué par le site
+    time.sleep(uniform(1, 3))
 
     # Stockage du tout dans un dictionnaire
     return {
