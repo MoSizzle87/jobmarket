@@ -68,10 +68,6 @@ async def extract_links(jobsearch_url: str, job_links_selector: str):
     except Exception as e:
         raise e
 
-baseurl = 'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page=1&aroundQuery=worldwide'
-total_page_selector = '.sc-bhqpjJ.iCgvlm'
-page_number = asyncio.run(get_search_total_pages(baseurl, total_page_selector))
-
 def get_html(url):
     """
     Parser la page html voulue
@@ -90,7 +86,11 @@ def get_html(url):
     return html
 
 
-def get_info(html, selector, replacements={}, parent=True):
+def get_info(html, selector, parent=True):
+    replacements = {
+        "Salaire : ": "", "Expérience : ": "", "Éducation : ": "", " collaborateurs": "", "Créée en ": "",
+        "Âge moyen : ": "", " ans": "", "Chiffre d'affaires : ": "", "M€": "", "%": ""
+    }
     """
     Fonction pour extraire les informations voulues et revoyer None si l'information n'est pas présente dans la page
     :param html: HTML contenant les informations
@@ -204,55 +204,27 @@ async def get_company_elements(html, database):
         print(f'Error occurred during web scraping: {e}')
         return None
 
-## Captation du nombre de pages
-# url et selecteur pour la fonction get_search_total_pages
 baseurl = 'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page=1&aroundQuery=worldwide'
 total_page_selector = '.sc-bhqpjJ.iCgvlm'
-# Je capte le nombre total de page
 page_number = asyncio.run(get_search_total_pages(baseurl, total_page_selector))
 
-# selecteur pour la fonction extract_links
-job_links_selector = '.sc-6i2fyx-0.gIvJqh'
-
 async def main():
-    """
-    On créé une fonction pour gérer l'enchainement des fonctions
-    """
-    for i in range(1, int(page_number)+1):
-        # url pour la fonction extract_links
+    job_links_selector = '.sc-6i2fyx-0.gIvJqh'
+    global wttj_db
+    wttj_db = {}
+    for i in range(1, 3):
         jobsearch_url = f'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={i}&aroundQuery=worldwide'
         links = await extract_links(jobsearch_url, job_links_selector)
+        for link in links:
 
+            base_url = 'https://www.welcometothejungle.com/'
+            complete_url = f'{base_url}{link}'
+            html = get_html(complete_url)
+            contract_data = get_contract_elements(html, wttj_db)
+            company_data = get_company_elements(html, wttj_db)
+            wttj_db.update(contract_data)
+            wttj_db.update(company_data)
+            await asyncio.sleep(uniform(1, 3))
+        print(wttj_db)
 
 asyncio.run(main())
-
-async def main():
-    """
-    On créé une fonction pour gérer l'enchainement des fonctions
-    """
-    url = 'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page=1&aroundQuery=worldwide'
-    jobs_selector = '.sc-6i2fyx-0.gIvJqh'
-    jobs_links = extract_links(url, jobs_selector)
-    for job_link in jobs_links:
-        global wttj_db
-        base_url = 'https://www.welcometothejungle.com/'
-        complete_url = f'{base_url}{job_link}'
-        html = get_html(complete_url)
-        contract_data = get_contract_elements(html)
-        company_data = get_company_elements(html)
-        wttj_db.update(contract_data)
-        wttj_db.update(company_data)
-        await asyncio.sleep(uniform(1, 3))
-    print(wttj_db)
-
-
-# Initialisation de wttj_db comme une variable globale avant d'appeler main()
-wttj_db = {}
-
-# Pour faciliter l'execution du code
-if __name__ == "__main__":
-    main()
-to_replace = {
-    "Salaire : ": "", "Expérience : ": "", "Éducation : ": "", " collaborateurs": "", "Créée en ": "",
-    "Âge moyen : ": "", " ans": "", "Chiffre d'affaires : ": "", "M€": "", "%": ""
-}
