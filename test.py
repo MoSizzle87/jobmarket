@@ -1,5 +1,4 @@
 import validators
-import time
 from random import uniform
 from fake_useragent import UserAgent
 import httpx
@@ -7,8 +6,34 @@ from selectolax.parser import HTMLParser
 import asyncio
 from playwright.async_api import async_playwright
 
+# Liste des constantes
+BASEURL = 'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page=1&aroundQuery=worldwide'
+RACINE_URL = 'https://www.welcometothejungle.com'
+JOB_LINK_SELECTOR = '.sc-6i2fyx-0.gIvJqh'
+TOTAL_PAGE_SELECTOR = '.sc-bhqpjJ.iCgvlm'
+CONTRACT_SELECTORS = {
+    'job_title': '.sc-empnci.cYPTxs.wui-text',
+    'contract_type': '[name="contract"]',
+    'salary': '[name="salary"]',
+    'company': '.sc-empnci.hmOCpj.wui-text',
+    'location': '[name="location"]',
+    'remote': '[name="remote"]',
+    'experience': '[name="suitcase"]',
+    'education_level': '[name="education_level"]'
+    }
+COMPANY_SELECTORS = {
+    'sector': '[alt="Tag"]',
+    'company_size': '[alt="Department"]',
+    'creation_date': '[alt="Date"]',
+    'address': '.sc-ezreuY.iObOsq.sc-boZgaH.fVBQVn.sc-4e9f7k-2.kAeJOl',
+    'average_age_of_employees': '[alt="Birthday"]',
+    'turnover_in_millions': '[alt="EuroCurrency"]',
+    'proportion_female': '[alt="Female"]',
+    'proportion_male': '[alt="Male"]'
+}
 
-async def get_search_total_pages(baseurl: str, selector):
+
+async def get_total_pages(baseurl: str, total_page_selector):
     '''
     Fonction pour retourner le nombre de page totales de notre recherche.
     Utilisation de playwright xar il s'agit de code JavaScript
@@ -26,23 +51,22 @@ async def get_search_total_pages(baseurl: str, selector):
             await page.goto(baseurl, timeout=5000)
 
             # On attends que la page ait chargé le contenu avec le nombre total de pages
-            await page.wait_for_selector(selector, timeout=5000)
+            await page.wait_for_selector(total_page_selector, timeout=5000)
 
             # Récupération du nombre total de pages
-            total_pages_text = await page.inner_text(selector)
+            total_pages_text = await page.inner_text(total_page_selector)
 
             # Vérifier si l'opération a réussi et si la liste obtenue n'est pas vide
             pages = total_pages_text.split("\n")
-            if pages:
-                return pages[-1]
-            else:
-                return None
+            return int(pages[-1]) if pages else None
         except Exception as e:
             print(f'An error occurred: {str(e)}')
             return None
+        finally:
+            await browser.close()
 
 
-async def extract_links(jobsearch_url: str, job_links_selector: str):
+async def extract_links(job_search_url: str, job_links_selector: str):
     '''
     Fonction pour extraire les liens vers les offres pour chaque page de recherche
     :param url: url des pages de recherche
@@ -53,7 +77,7 @@ async def extract_links(jobsearch_url: str, job_links_selector: str):
         async with async_playwright() as p:
             browser = await p.chromium.launch()
             page = await browser.new_page()
-            await page.goto(jobsearch_url, timeout=5000)
+            await page.goto(job_search_url, timeout=5000)
 
             # On attends que la page ait chargé le contenu avec le nombre total de pages
             await page.wait_for_selector(job_links_selector, timeout=5000)
@@ -66,7 +90,9 @@ async def extract_links(jobsearch_url: str, job_links_selector: str):
 
         return links
     except Exception as e:
-        raise e
+        print(f'Error extracting links: {str(e)}')
+        return []
+
 
 def get_html(url):
     """
@@ -106,18 +132,6 @@ def get_info(html, selector, parent=True):
         return text
     except AttributeError:
         return None
-
-
-CONTRACT_SELECTORS = {
-    'job_title': '.sc-empnci.cYPTxs.wui-text',
-    'contract_type': '[name="contract"]',
-    'salary': '[name="salary"]',
-    'company': '.sc-empnci.hmOCpj.wui-text',
-    'location': '[name="location"]',
-    'remote': '[name="remote"]',
-    'experience': '[name="suitcase"]',
-    'education_level': '[name="education_level"]'
-    }
 
 
 async def get_contract_elements(html, database):
@@ -161,17 +175,6 @@ async def get_contract_elements(html, database):
         print(f'Error occurred during web scraping: {e}')
         return None
 
-COMPANY_SELECTORS = {
-    'sector': '[alt="Tag"]',
-    'company_size': '[alt="Department"]',
-    'creation_date': '[alt="Date"]',
-    'address': '.sc-ezreuY.iObOsq.sc-boZgaH.fVBQVn.sc-4e9f7k-2.kAeJOl',
-    'average_age_of_employees': '[alt="Birthday"]',
-    'turnover_in_millions': '[alt="EuroCurrency"]',
-    'proportion_female': '[alt="Female"]',
-    'proportion_male': '[alt="Male"]'
-}
-
 
 async def get_company_elements(html, database):
     try:
@@ -180,9 +183,9 @@ async def get_company_elements(html, database):
         sector = get_info(company_elements, COMPANY_SELECTORS['sector'])
         company_size = get_info(company_elements, COMPANY_SELECTORS['company_size'])
         creation_date = get_info(company_elements, COMPANY_SELECTORS['creation_date'])
-        address = ", ".join(
-            get_info(company_elements, COMPANY_SELECTORS['address'], parent=False).split(", ")[
-            :2])
+        # Vérifiez si address est None avant d'appliquer split()
+        address_info = get_info(company_elements, COMPANY_SELECTORS['address'], parent=False)
+        address = ", ".join(address_info.split(", ")[:2]) if address_info else None
         average_age_of_employees = get_info(company_elements, COMPANY_SELECTORS['average_age_of_employees'])
         turnover_in_millions = get_info(company_elements, COMPANY_SELECTORS['turnover_in_millions'])
         proportion_female = get_info(company_elements, COMPANY_SELECTORS['proportion_female'])
@@ -204,27 +207,35 @@ async def get_company_elements(html, database):
         print(f'Error occurred during web scraping: {e}')
         return None
 
-baseurl = 'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page=1&aroundQuery=worldwide'
-total_page_selector = '.sc-bhqpjJ.iCgvlm'
-page_number = asyncio.run(get_search_total_pages(baseurl, total_page_selector))
+
+
 
 async def main():
-    job_links_selector = '.sc-6i2fyx-0.gIvJqh'
-    global wttj_db
-    wttj_db = {}
-    for i in range(1, 3):
-        jobsearch_url = f'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={i}&aroundQuery=worldwide'
-        links = await extract_links(jobsearch_url, job_links_selector)
-        for link in links:
+    Total_pages = await get_total_pages(BASEURL, TOTAL_PAGE_SELECTOR)
+    job_links = []
+    wttj_database = {}
 
-            base_url = 'https://www.welcometothejungle.com/'
-            complete_url = f'{base_url}{link}'
+    for page_number in range(1, 3):
+        JOB_SEARCH_URL = f'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide'
+        job_search_url = JOB_SEARCH_URL.format(page_number=page_number)
+        job_links.extend(await extract_links(JOB_SEARCH_URL, JOB_LINK_SELECTOR))
+
+        wttj_database = {}
+        for link in job_links:
+            i = 1
+            print(f'Scraping page {page_number} offer {i}')
+            complete_url = f'{RACINE_URL}{link}'
             html = get_html(complete_url)
-            contract_data = get_contract_elements(html, wttj_db)
-            company_data = get_company_elements(html, wttj_db)
-            wttj_db.update(contract_data)
-            wttj_db.update(company_data)
-            await asyncio.sleep(uniform(1, 3))
-        print(wttj_db)
+            if html:
+                # Use the link as a key for the database
+                wttj_database[link] = {}
+                contract_data = await get_contract_elements(html, wttj_database)
+                company_data = await get_company_elements(html, wttj_database)
+                await asyncio.sleep(uniform(1, 3))
+                i += 1
 
-asyncio.run(main())
+    print(wttj_database)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
