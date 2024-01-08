@@ -227,8 +227,7 @@ async def main():
             complete_url = f'{RACINE_URL}{link}'
             html = get_html(complete_url)
             if html:
-                # Use the link as a key for the database
-                wttj_database[link] = {}
+                wttj_database = {}
                 contract_data = await get_contract_elements(html, wttj_database)
                 company_data = await get_company_elements(html, wttj_database)
                 await asyncio.sleep(uniform(1, 3))
