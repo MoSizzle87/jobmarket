@@ -74,27 +74,25 @@ async def get_total_pages(baseurl: str, total_page_selector: str):
     except ValueError as ve:
         logging.error(f"URL invalide: {str(ve)}")
 
-async def extract_links(job_search_url: str, job_links_selector: str):
+async def extract_links(page, job_search_url: str, job_links_selector: str):
     '''
     Fonction pour extraire les liens vers les offres pour chaque page de recherche
+    :param page: instance de la page Playwright
     :param url: url des pages de recherche
     :param selector: selecteur ou se trouve l'information
     :return: liste de liens
     '''
     try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch()
-            page = await browser.new_page()
-            await page.goto(job_search_url, timeout=5000)
+        await page.goto(job_search_url, timeout=5000)
 
-            # On attends que la page ait chargé le contenu avec le nombre total de pages
-            await page.wait_for_selector(job_links_selector, timeout=5000)
+        # On attends que la page ait chargé le contenu avec le nombre total de pages
+        await page.wait_for_selector(job_links_selector, timeout=5000)
 
-            # Selection de tous les éléments qui correspondent au selecteur
-            elements = await page.query_selector_all(job_links_selector)
+        # Selection de tous les éléments qui correspondent au selecteur
+        elements = await page.query_selector_all(job_links_selector)
 
-            # Extraction des liens en utilisant la commande get_attribute
-            links = [await element.get_attribute("href") for element in elements]
+        # Extraction des liens en utilisant la commande get_attribute
+        links = [await element.get_attribute("href") for element in elements]
 
         return links
     except Exception as e:
@@ -233,27 +231,28 @@ async def main():
         job_links = []
         wttj_database = []
 
-        for page_number in range(1, 2):
-            JOB_SEARCH_URL = f'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide'
-            job_search_url = JOB_SEARCH_URL.format(page_number=page_number)
-            job_links.extend(await extract_links(JOB_SEARCH_URL, JOB_LINK_SELECTOR))
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
 
-            i = 1
-            for link in job_links:
-                print(f'Scraping page {page_number} offer {i}')
-                complete_url = f'{RACINE_URL}{link}'
-                html = get_html(complete_url)
-                if html:
-                    # Utiliser un dictionnaire pour chaque offre d'emploi
-                    contract_data = await get_contract_elements(html, CONTRACT_INFO_SELECTOR, wttj_database)
-                    company_data = await get_company_elements(html, COMPANY_INFO_SELECTOR, wttj_database)
+            for page_number in range(1, 2):
+                JOB_SEARCH_URL = f"https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide"
+                job_search_url = JOB_SEARCH_URL.format(page_number=page_number)
+                page = await browser.new_page()
+                job_links.extend(await extract_links(page, JOB_SEARCH_URL, JOB_LINK_SELECTOR))
 
-                    # On ajoute les éléments individuels à la liste d'offres
-                    wttj_database.append(contract_data)
-                    wttj_database.append(company_data)
+                for i, link in enumerate(job_links, start=1):
+                    print(f'Scraping page {page_number} offer {i}')
+                    complete_url = f'{RACINE_URL}{link}'
+                    html = get_html(complete_url)
+                    if html:
+                        # Utiliser un dictionnaire pour chaque offre d'emploi
+                        contract_data = await get_contract_elements(html, CONTRACT_INFO_SELECTOR, wttj_database)
+                        company_data = await get_company_elements(html, COMPANY_INFO_SELECTOR, wttj_database)
 
-                    await asyncio.sleep(uniform(1, 3))
-                i += 1
+                        # On ajoute les éléments individuels à la liste d'offres
+                        wttj_database.extend([contract_data, company_data])
+
+                        await asyncio.sleep(uniform(1, 3))
     except Exception as e:
         logging.error(f'Erreur inattendue : {e}')
 
@@ -264,3 +263,4 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     sys.exit()
+
