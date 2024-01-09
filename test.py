@@ -232,7 +232,6 @@ async def generate_job_search_url(page_number):
 async def main():
     try:
         Total_pages = await get_total_pages(BASEURL, TOTAL_PAGE_SELECTOR)
-        job_links = []
         wttj_database = []
 
         async with async_playwright() as p:
@@ -241,7 +240,7 @@ async def main():
             for page_number in range(1, 2):
                 job_search_url = await generate_job_search_url(page_number)
                 page = await browser.new_page()
-                job_links.extend(await extract_links(page, job_search_url, JOB_LINK_SELECTOR))
+                job_links = await extract_links(page, job_search_url, JOB_LINK_SELECTOR)
 
                 for i, link in enumerate(job_links, start=1):
                     print(f'Scraping page {page_number} offer {i}')
