@@ -5,12 +5,18 @@ import httpx
 from selectolax.parser import HTMLParser
 import asyncio
 from playwright.async_api import async_playwright
+import logging
+import sys
+import os
+import json
 
 # Liste des constantes
 BASEURL = 'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page=1&aroundQuery=worldwide'
 RACINE_URL = 'https://www.welcometothejungle.com'
 JOB_LINK_SELECTOR = '.sc-6i2fyx-0.gIvJqh'
 TOTAL_PAGE_SELECTOR = '.sc-bhqpjJ.iCgvlm'
+CONTRACT_INFO_SELECTOR = '.sc-bXCLTC.jlqIpd.sc-fbKhjd.kfysmu.sc-1wwpb2t-5.hexbEF'
+COMPANY_INFO_SELECTOR = '.sc-bXCLTC.dBpdut'
 CONTRACT_SELECTORS = {
     'job_title': '.sc-empnci.cYPTxs.wui-text',
     'contract_type': '[name="contract"]',
@@ -33,7 +39,7 @@ COMPANY_SELECTORS = {
 }
 
 
-async def get_total_pages(baseurl: str, total_page_selector):
+async def get_total_pages(baseurl: str, total_page_selector: str):
     '''
     Fonction pour retourner le nombre de page totales de notre recherche.
     Utilisation de playwright xar il s'agit de code JavaScript
@@ -41,30 +47,32 @@ async def get_total_pages(baseurl: str, total_page_selector):
     :param selector: selecteur JavaScript contenant le nombre de pages
     :return: un nombre au format str correspondant à la dernière page de notre recherche
     '''
-    if not validators.url(baseurl):
-        raise ValueError("Invalid URL")
+    try:
+        if not validators.url(baseurl):
+            raise ValueError("Invalid URL")
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch()
-        page = await browser.new_page()
-        try:
-            await page.goto(baseurl, timeout=5000)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch()
+            page = await browser.new_page()
+            try:
+                await page.goto(baseurl, timeout=5000)
 
-            # On attends que la page ait chargé le contenu avec le nombre total de pages
-            await page.wait_for_selector(total_page_selector, timeout=5000)
+                # On attends que la page ait chargé le contenu avec le nombre total de pages
+                await page.wait_for_selector(total_page_selector, timeout=5000)
 
-            # Récupération du nombre total de pages
-            total_pages_text = await page.inner_text(total_page_selector)
+                # Récupération du nombre total de pages
+                total_pages_text = await page.inner_text(total_page_selector)
 
-            # Vérifier si l'opération a réussi et si la liste obtenue n'est pas vide
-            pages = total_pages_text.split("\n")
-            return int(pages[-1]) if pages else None
-        except Exception as e:
-            print(f'An error occurred: {str(e)}')
-            return None
-        finally:
-            await browser.close()
-
+                # Vérifier si l'opération a réussi et si la liste obtenue n'est pas vide
+                pages = total_pages_text.split("\n")
+                return int(pages[-1]) if pages else None
+            except Exception as e:
+                logging.error(f"Erreur pendant l'extraction du nombre total de pages: {str(e)}")
+                raise
+            finally:
+                await browser.close()
+    except ValueError as ve:
+        logging.error(f"URL invalide: {str(ve)}")
 
 async def extract_links(job_search_url: str, job_links_selector: str):
     '''
@@ -94,13 +102,13 @@ async def extract_links(job_search_url: str, job_links_selector: str):
         return []
 
 
-def get_html(url):
+def get_html(url: str):
     """
     Parser la page html voulue
     On utilise un UserAgent différent à chaque appel de la fonction pour ne pas être bloqué par le site
     """
     user_agent = UserAgent().random  # Générer un User-Agent aléatoire à chaque appel
-    headers = {'User-Agent': user_agent}
+    headers = {'User-Agent': user_agent }
 
     with httpx.Client() as client:
         try:
@@ -115,7 +123,7 @@ def get_html(url):
 def get_info(html, selector, parent=True):
     replacements = {
         "Salaire : ": "", "Expérience : ": "", "Éducation : ": "", " collaborateurs": "", "Créée en ": "",
-        "Âge moyen : ": "", " ans": "", "Chiffre d'affaires : ": "", "M€": "", "%": ""
+        "Âge moyen : ": "", " ans": "", "Chiffre d'affaires : ": "", "M€": "", "%": "", "&nbsp;": " ", "&NBSP;": " "
     }
     """
     Fonction pour extraire les informations voulues et revoyer None si l'information n'est pas présente dans la page
@@ -134,7 +142,7 @@ def get_info(html, selector, parent=True):
         return None
 
 
-async def get_contract_elements(html, database):
+async def get_contract_elements(html, contract_info_selector, database):
     """
     Extracts contract elements from HTML and updates the wttj_db with the extracted data.
 
@@ -146,7 +154,7 @@ async def get_contract_elements(html, database):
         dict: The extracted contract data.
     """
     # Ciblage de ma balise contenant toutes les données de base de l'offre
-    contract_elements = html.css_first('.sc-bXCLTC.jlqIpd.sc-fbKhjd.kfysmu.sc-1wwpb2t-5.hexbEF')
+    contract_elements = html.css_first(contract_info_selector)
 
     try:
         job_title = get_info(contract_elements, CONTRACT_SELECTORS['job_title'], parent=False)
@@ -168,17 +176,15 @@ async def get_contract_elements(html, database):
         }
         await asyncio.sleep(uniform(1, 3))
 
-        database.update(contract_data)
-
         return contract_data
     except Exception as e:
-        print(f'Error occurred during web scraping: {e}')
-        return None
+        logging.error(f"Erreur pendant l'extraction des éléments du contrat: {e}")
+        raise
 
 
-async def get_company_elements(html, database):
+async def get_company_elements(html, company_info_selector, database):
     try:
-        company_elements = html.css_first('.sc-bXCLTC.dBpdut')
+        company_elements = html.css_first(company_info_selector)
 
         sector = get_info(company_elements, COMPANY_SELECTORS['sector'])
         company_size = get_info(company_elements, COMPANY_SELECTORS['company_size'])
@@ -199,42 +205,62 @@ async def get_company_elements(html, database):
         }
         await asyncio.sleep(uniform(1, 3))
 
-        database.update(company_data)
-
         return company_data
 
     except Exception as e:
-        print(f'Error occurred during web scraping: {e}')
-        return None
+        logging.error(f"Erreur pendant l'extraction des éléments de l'entreprise: {e}")
+        raise
 
+OUTPUT_DIR = '/Users/MoG/PycharmProjects/jobmarket/jobmarket'
+def save_file(file_to_save, output_dir, output_name: str):
+    output_name = f"{output_name}.json"
+    output_path = os.path.join(output_dir, output_name)
 
+    try:
+        # Ouvre le fichier en mode écriture
+        with open(output_path, 'w', encoding='utf-8') as fichier:
+            # On utilise json.dump pour écrire les données dans le fichier JSON
+            json.dump(file_to_save, fichier, ensure_ascii=False)
+
+        print(f"Le document a été enregistré avec succès dans {output_path}")
+    except Exception as e:
+        print(f"Erreur lors de l'enregistrement du document : {e}")
 
 
 async def main():
-    Total_pages = await get_total_pages(BASEURL, TOTAL_PAGE_SELECTOR)
-    job_links = []
-    wttj_database = {}
+    try:
+        Total_pages = await get_total_pages(BASEURL, TOTAL_PAGE_SELECTOR)
+        job_links = []
+        wttj_database = []
 
-    for page_number in range(1, 3):
-        JOB_SEARCH_URL = f'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide'
-        job_search_url = JOB_SEARCH_URL.format(page_number=page_number)
-        job_links.extend(await extract_links(JOB_SEARCH_URL, JOB_LINK_SELECTOR))
+        for page_number in range(1, 2):
+            JOB_SEARCH_URL = f'https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide'
+            job_search_url = JOB_SEARCH_URL.format(page_number=page_number)
+            job_links.extend(await extract_links(JOB_SEARCH_URL, JOB_LINK_SELECTOR))
 
-        wttj_database = {}
-        for link in job_links:
             i = 1
-            print(f'Scraping page {page_number} offer {i}')
-            complete_url = f'{RACINE_URL}{link}'
-            html = get_html(complete_url)
-            if html:
-                wttj_database = {}
-                contract_data = await get_contract_elements(html, wttj_database)
-                company_data = await get_company_elements(html, wttj_database)
-                await asyncio.sleep(uniform(1, 3))
-                i += 1
+            for link in job_links:
+                print(f'Scraping page {page_number} offer {i}')
+                complete_url = f'{RACINE_URL}{link}'
+                html = get_html(complete_url)
+                if html:
+                    # Utiliser un dictionnaire pour chaque offre d'emploi
+                    contract_data = await get_contract_elements(html, CONTRACT_INFO_SELECTOR, wttj_database)
+                    company_data = await get_company_elements(html, COMPANY_INFO_SELECTOR, wttj_database)
 
-    print(wttj_database)
+                    # On ajoute les éléments individuels à la liste d'offres
+                    wttj_database.append(contract_data)
+                    wttj_database.append(company_data)
+
+                    await asyncio.sleep(uniform(1, 3))
+                i += 1
+    except Exception as e:
+        logging.error(f'Erreur inattendue : {e}')
+
+    # Concaténez les listes de dictionnaires en une seule liste
+    save_file(wttj_database, OUTPUT_DIR, 'wttj_database')
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+    sys.exit()
