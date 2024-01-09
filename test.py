@@ -225,6 +225,10 @@ def save_file(file_to_save, output_dir, output_name: str):
         print(f"Erreur lors de l'enregistrement du document : {e}")
 
 
+async def generate_job_search_url(page_number):
+    return f"https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide"
+
+
 async def main():
     try:
         Total_pages = await get_total_pages(BASEURL, TOTAL_PAGE_SELECTOR)
@@ -235,10 +239,9 @@ async def main():
             browser = await p.chromium.launch()
 
             for page_number in range(1, 2):
-                JOB_SEARCH_URL = f"https://www.welcometothejungle.com/fr/jobs?query=data%20engineer&page={page_number}&aroundQuery=worldwide"
-                job_search_url = JOB_SEARCH_URL.format(page_number=page_number)
+                job_search_url = await generate_job_search_url(page_number)
                 page = await browser.new_page()
-                job_links.extend(await extract_links(page, JOB_SEARCH_URL, JOB_LINK_SELECTOR))
+                job_links.extend(await extract_links(page, job_search_url, JOB_LINK_SELECTOR))
 
                 for i, link in enumerate(job_links, start=1):
                     print(f'Scraping page {page_number} offer {i}')
