@@ -86,7 +86,6 @@ async def get_contract_elements(html, contract_info_selector, CONTRACT_SELECTORS
             'remote': remote, 'experience': experience, 'education_level': education_level,
             'publication_date': publication_date
         }
-        await asyncio.sleep(uniform(1, 3))
 
         return contract_data
     except Exception as e:
@@ -122,8 +121,6 @@ async def get_company_elements(html, company_info_selector, COMPANY_SELECTORS):
             'turnover_in_millions': turnover_in_millions, 'proportion_female': proportion_female,
             'proportion_male': proportion_male
         }
-        await asyncio.sleep(uniform(1, 3))
-
         return company_data
 
     except Exception as e:
