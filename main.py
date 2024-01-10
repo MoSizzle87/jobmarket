@@ -1,3 +1,13 @@
+import sys
+import inspect
+from pathlib import Path
+
+# Ajoutez le chemin du répertoire parent à sys.path en utilisant pathlib
+current_dir = '/Users/MoG/PycharmProjects/jobmarket/jobmarket'
+sys.path.append(str(current_dir))
+
+print(sys.path)
+
 import validators
 from random import uniform
 import logging
@@ -31,7 +41,7 @@ async def main():
                 for i, link in enumerate(job_links, start=1):
                     print(f'Scraping page {page_number} offer {i}')
                     complete_url = f'{RACINE_URL}{link}'
-                    html = get_html(complete_url)
+                    html = await get_html(complete_url)
                     if html:
                         # Use a dictionary for each job offer
                         contract_data = await get_contract_elements(html, CONTRACT_INFO_SELECTOR, CONTRACT_SELECTORS)
@@ -40,7 +50,6 @@ async def main():
                         # Individual items are added to the offer list
                         wttj_database.extend([contract_data, company_data])
 
-                        # await asyncio.sleep(uniform(1, 3))
     except Exception as e:
         logging.error(f'Erreur inattendue : {e}')
 

@@ -18,9 +18,9 @@ async def get_html(url: str):
     user_agent = UserAgent().random  # Generate a random User-Agent for each call
     headers = {'User-Agent': user_agent}
 
-    with httpx.Client() as client:
+    async with httpx.AsyncClient() as client:
         try:
-            resp = client.get(url, headers=headers)
+            resp = await client.get(url, headers=headers)
             html = HTMLParser(resp.text)
         except Exception as e:
             print(f"Error parsing HTML: {e}")
