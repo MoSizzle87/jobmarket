@@ -77,8 +77,12 @@ async def get_contract_elements(html, contract_info_selector, CONTRACT_SELECTORS
         remote = get_info(contract_elements, CONTRACT_SELECTORS['remote'])
         experience = get_info(contract_elements, CONTRACT_SELECTORS['experience'])
         education_level = get_info(contract_elements, CONTRACT_SELECTORS['education_level'])
+
+        # Check if 'time' exists in contract_elements before accessing 'attributes' attribute
         # for publication_date the information appears directly in the tag .attributes
-        publication_date = contract_elements.css_first('time').attributes['datetime'][0:10]
+        time_element = contract_elements.css_first('time')
+        publication_date = time_element.attributes['datetime'][0:10] if time_element else None
+
 
         contract_data = {
             'job_title': job_title, 'contract_type': contract_type, 'salary': salary, 'company': company,

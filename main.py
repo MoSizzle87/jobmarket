@@ -13,7 +13,7 @@ from scrap_wttj.constants import (BASEURL, RACINE_URL, TOTAL_PAGE_SELECTOR, JOB_
                                   COMPANY_INFO_SELECTOR, CONTRACT_SELECTORS, COMPANY_SELECTORS)
 from playwright.async_api import async_playwright
 from scrap_wttj.data_extraction import extract_links, get_contract_elements, get_company_elements
-from scrap_wttj.extraction_functions import get_total_pages, get_html
+from scrap_wttj.pagination_functions import get_total_pages, get_html
 from scrap_wttj.file_operations import save_file
 
 
