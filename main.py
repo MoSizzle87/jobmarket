@@ -3,13 +3,12 @@ from random import uniform
 import logging
 import sys
 import asyncio
-from constants import (BASEURL, RACINE_URL, TOTAL_PAGE_SELECTOR, JOB_LINK_SELECTOR, CONTRACT_INFO_SELECTOR,
-                       COMPANY_INFO_SELECTOR, CONTRACT_SELECTORS, COMPANY_SELECTORS)
+from scrap_wttj.constants import (BASEURL, RACINE_URL, TOTAL_PAGE_SELECTOR, JOB_LINK_SELECTOR, CONTRACT_INFO_SELECTOR,
+                                  COMPANY_INFO_SELECTOR, CONTRACT_SELECTORS, COMPANY_SELECTORS)
 from playwright.async_api import async_playwright
-from data_extraction import extract_links, get_contract_elements, get_company_elements
-from extraction_functions import get_total_pages, get_html
-from file_operations import save_file
-
+from scrap_wttj.data_extraction import extract_links, get_contract_elements, get_company_elements
+from scrap_wttj.extraction_functions import get_total_pages, get_html
+from scrap_wttj.file_operations import save_file
 
 
 async def generate_job_search_url(page_number):
@@ -52,4 +51,3 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     sys.exit()
-
