@@ -43,11 +43,8 @@ async def main():
                         contract_data = await get_contract_elements(html, CONTRACT_INFO_SELECTOR, CONTRACT_SELECTORS)
                         company_data = await get_company_elements(html, COMPANY_INFO_SELECTOR, COMPANY_SELECTORS)
 
-                        # Create a dictionary to represent the entire job offer
-                        job_offer = {
-                            'contract_data': contract_data,
-                            'company_data': company_data
-                        }
+                        # Merge contract_data and company_data into a single dictionary
+                        job_offer = {**contract_data, **company_data}
 
                         # Individual items are added to the offer list
                         wttj_database.append(job_offer)
