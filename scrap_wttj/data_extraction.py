@@ -3,8 +3,6 @@ This module groups together all the functions needed to obtain information from 
 """
 
 import logging
-import asyncio
-from random import uniform
 
 
 async def extract_links(page, job_search_url: str, job_links_selector: str):
@@ -29,7 +27,7 @@ async def extract_links(page, job_search_url: str, job_links_selector: str):
 
         return links
     except Exception as e:
-        print(f'Error extracting links: {str(e)}')
+        logging.error(f'Error extracting links: {str(e)}')
         return []
 
 
@@ -130,4 +128,44 @@ async def get_company_elements(html, company_info_selector, COMPANY_SELECTORS):
     except Exception as e:
         logging.error(f"Error during extraction of company elements: {e}")
         raise
+
+
+def get_job_skills(html, job_description_selector, job_info_dict):
+    # Configuration des logs
+    logging.basicConfig(level=logging.INFO)
+
+    try:
+        # Utiliser html.css_first() pour extraire le contenu du sélecteur CSS
+        job_description_element = html.css_first(job_description_selector)
+
+        # Vérifier si l'élément existe
+        if job_description_element:
+            # Obtenir le texte de la description du travail
+            job_description = job_description_element.text()
+
+            # Dictionnaire pour stocker les résultats
+            result_dict = {}
+
+            # Parcourir le dictionnaire des compétences
+            for skill, keyword in job_info_dict.items():
+                # Vérifier si le mot-clé est présent dans la description du travail
+                if keyword.lower() in job_description.lower():
+                    # Si présent, ajouter à la liste des compétences
+                    result_dict[skill] = [word.lower() for word in job_description.split() if
+                                          keyword.lower() in word.lower()]
+                else:
+                    # Si non trouvé, retourner None
+                    result_dict[skill] = None
+
+            return result_dict
+        else:
+            logging.warning("Aucun élément trouvé avec le sélecteur CSS.")
+            return None
+
+    except Exception as e:
+        # Gérer les exceptions et enregistrer les logs
+        logging.error(f"Une erreur s'est produite: {str(e)}")
+        return None
+
+
 
