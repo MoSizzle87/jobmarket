@@ -28,7 +28,6 @@ async def main():
 
         try:
             total_pages = await get_total_pages(baseurl, TOTAL_PAGE_SELECTOR)
-            wttj_database = []
 
             async with async_playwright() as p:
                 browser = await p.chromium.launch()
@@ -53,14 +52,12 @@ async def main():
                             # Merge contract_data and company_data into a single dictionary
                             job_offer = {**contract_data, **company_data, **skills_data}
 
-                            # Individual items are added to the offer list
-                            wttj_database.append(job_offer)
+                            # Save the output in a json file
+                            save_file(job_offer, 'wttj_database')
 
         except Exception as e:
             logging.error(f'Erreur inattendue : {e}')
 
-    # Save the output in a json file
-    save_file(wttj_database, 'wttj_database')
 
 
 if __name__ == "__main__":

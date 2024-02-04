@@ -4,6 +4,9 @@ This module groups together all the functions needed to obtain information from 
 
 import logging
 
+# Configuration des logs
+logging.basicConfig(level=logging.INFO)
+
 
 async def extract_links(page, job_search_url: str, job_links_selector: str):
     """
@@ -81,7 +84,6 @@ async def get_contract_elements(html, contract_info_selector, CONTRACT_SELECTORS
         time_element = contract_elements.css_first('time')
         publication_date = time_element.attributes['datetime'][0:10] if time_element else None
 
-
         contract_data = {
             'job_title': job_title, 'contract_type': contract_type, 'salary': salary, 'company': company,
             'location': location,
@@ -130,9 +132,8 @@ async def get_company_elements(html, company_info_selector, COMPANY_SELECTORS):
         raise
 
 
-def get_job_skills(html, job_description_selector, job_info_dict):
-    # Configuration des logs
-    logging.basicConfig(level=logging.INFO)
+async def get_job_skills(html, job_description_selector, job_info_dict):
+
 
     try:
         # Utiliser html.css_first() pour extraire le contenu du sélecteur CSS
@@ -147,15 +148,20 @@ def get_job_skills(html, job_description_selector, job_info_dict):
             result_dict = {}
 
             # Parcourir le dictionnaire des compétences
-            for skill, keyword in job_info_dict.items():
-                # Vérifier si le mot-clé est présent dans la description du travail
-                if keyword.lower() in job_description.lower():
-                    # Si présent, ajouter à la liste des compétences
-                    result_dict[skill] = [word.lower() for word in job_description.split() if
-                                          keyword.lower() in word.lower()]
-                else:
-                    # Si non trouvé, retourner None
-                    result_dict[skill] = None
+            for skill, keywords in job_info_dict.items():
+                # Liste pour stocker les résultats pour chaque compétence
+                skill_results = []
+
+                # Parcourir les mots-clés de la compétence
+                for keyword in keywords:
+                    # Vérifier si le mot-clé est présent dans la description du travail
+                    if keyword.lower() in job_description.lower():
+                        # Si présent, ajouter à la liste des compétences
+                        skill_results.extend(
+                            [word.lower() for word in job_description.split() if keyword.lower() in word.lower()])
+
+                # Ajouter les résultats au dictionnaire
+                result_dict[skill] = skill_results if skill_results else None
 
             return result_dict
         else:
@@ -166,6 +172,3 @@ def get_job_skills(html, job_description_selector, job_info_dict):
         # Gérer les exceptions et enregistrer les logs
         logging.error(f"Une erreur s'est produite: {str(e)}")
         return None
-
-
-
