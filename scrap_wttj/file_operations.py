@@ -19,6 +19,6 @@ def save_file(file_to_save, output_name: str):
             json.dump(file_to_save, fichier, ensure_ascii=False)
             fichier.write('\n')
 
-        logging.info(f"Le document a été enregistré avec succès dans {output_path}")
+        logging.info(f"File saved to {output_path}")
     except Exception as e:
-        logging.info(f"Erreur lors de l'enregistrement du document : {e}")
+        logging.info(f"An error occured during saving : {e}")

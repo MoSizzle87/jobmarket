@@ -25,6 +25,7 @@ async def generate_job_search_url(job, page_number):
 async def main():
     for job in JOBS:
         baseurl = await generate_job_search_url(job, page_number=1)
+        logging.info(f"Switching to job : {job}")
 
         try:
             total_pages = await get_total_pages(baseurl, TOTAL_PAGE_SELECTOR)
@@ -57,7 +58,6 @@ async def main():
 
         except Exception as e:
             logging.error(f'Erreur inattendue : {e}')
-
 
 
 if __name__ == "__main__":
