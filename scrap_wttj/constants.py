@@ -21,7 +21,7 @@ JOBS = ["data engineer",
         "ETL Developer"]
 RACINE_URL = 'https://www.welcometothejungle.com'
 JOB_LINK_SELECTOR = '.sc-6i2fyx-0.gIvJqh'
-TOTAL_PAGE_SELECTOR = '.sc-edKZPI.kCGopn'
+TOTAL_PAGE_SELECTOR = '[aria-label="Pagination"]'
 CONTRACT_INFO_SELECTOR = '[data-testid="job-metadata-block"]'
 COMPANY_INFO_SELECTOR = '.sc-bXCLTC.dBpdut'
 JOB_DESCRIPTION_SELECTOR = '[data-testid="job-section-description"]'

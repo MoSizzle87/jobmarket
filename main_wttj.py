@@ -30,6 +30,7 @@ async def main():
 
         try:
             total_pages = await get_total_pages(baseurl, TOTAL_PAGE_SELECTOR)
+            logging.info(f"Number of pages : {total_pages}")
 
             async with async_playwright() as p:
                 browser = await p.chromium.launch()
